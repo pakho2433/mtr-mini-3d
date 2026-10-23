@@ -264,7 +264,7 @@ const poleS=sprite('✊',.4);poleS.position.set(TX,2.2,1.5);tr.add(poleS);poleS.
  const tfT=rep(cvs(256,256,(g,w)=>{g.fillStyle='#7b8088';g.fillRect(0,0,w,w);for(let i=0;i<5000;i++){g.fillStyle=`rgba(${Math.random()<.5?30:220},${Math.random()<.5?30:220},${Math.random()<.5?30:220},.25)`;g.fillRect(Math.random()*w,Math.random()*w,2,2)}}),3,20);
  const tf=new THREE.Mesh(new THREE.PlaneGeometry(2.9,19.8),std({map:tfT,roughness:.75}));tf.rotation.x=-Math.PI/2;tf.position.set(TX,.065,0);tf.receiveShadow=true;tr.add(tf);
  const divs=[];for(const[a,b]of segIn)for(let z=a+.45;z<b;z+=1.4)for(const x of[-8.18,-5.82])divs.push([x,.8,z]);
- inst(new THREE.BoxGeometry(.04,.7,.04),mat.steel,divs,tr);
+ inst(new THREE.CylinderGeometry(.018,.018,.55,8),std({color:0xd0d5db,metalness:.5,roughness:.3}),divs.map(q=>[q[0],.75,q[2]]),tr);
  for(const s of[-1,1]){box(.05,1.0,.7,std({color:0x10151c,metalness:.5,roughness:.1}),TX,1.55,s*9.94,tr,false)}
  for(const z of[-5,5])box(1.9,.28,3.2,std({color:0xb8bec5,metalness:.6,roughness:.4}),TX,2.98,z,tr);
  const panto=new THREE.Group();panto.position.set(TX,3.05,0);tr.add(panto);box(1.4,.04,.05,mat.dark,0,.5,0,panto);for(const s of[-1,1]){const l=box(.03,.6,.03,mat.dark,s*.35,.25,0,panto);l.rotation.z=s*.5}
