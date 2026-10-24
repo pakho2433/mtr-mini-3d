@@ -437,18 +437,18 @@ function update(dt){clock+=dt;const T=clock;
   if(trainState==1){tt+=dt;const k=Math.min(1,tt/5);tr.position.z=-70*Math.pow(1-k,3);if(k>=1){trainState=2;tt=0;rumble(.15);psdLeds.forEach(l=>l.material.color.set(0x22ff55))}}
   if(trainState==2){tt+=dt;const o=Math.min(1,tt/1.2);doorsSet(o);if(o>=1){trainState=3;hud('🚪 先落後上 · 等等')}}
   if(trainState==3&&ex<3){const p=exiters[ex];p.userData.t=(p.userData.t||0)+dt;const t=p.userData.t;walkAnim(p,t);
-   if(p.position.x<-4.5){p.position.z+=(0-p.position.z)*.1;p.position.x+=dt*2.6}else{p.position.x+=dt*1.6;p.position.z+=dt*(ex==1?-2:2);p.rotation.y=Math.atan2(1.6,ex==1?-2:2)}
-   if(p.position.x>-4.3&&p.position.x<-1&&Math.abs(P.z-p.position.z)<.6&&P.x<-1&&!p.userData.bump){p.userData.bump=1;mistakes++;sfx.bad();toast('⚠️ 讓開！')}
+   if(p.position.x<-4.5){p.position.z+=(0-p.position.z)*.1;p.position.x+=dt*2.6}else if(p.position.x<-1.5){p.position.z*=.9;p.position.x+=dt*2;p.rotation.y=Math.PI/2}else{p.position.x+=dt*1.6;p.position.z+=dt*(ex==1?-2:2);p.rotation.y=Math.atan2(1.6,ex==1?-2:2)}
+   if(p.position.x>-4.3&&Math.hypot(P.x-p.position.x,P.z-p.position.z)<.55&&!p.userData.bump){p.userData.bump=1;mistakes++;sfx.bad();toast('⚠️ 讓開！')}
    if(t>3.6){p.visible=false;ex++;if(ex==3)hud('✅ 而家上車！')}
-   if(p.position.x>-4)tr.remove(p)||st.attach(p)}
+   if(p.position.x>-4&&p.parent===tr)st.attach(p)}
   if(trainState==3&&P.x<-5.4){phase=2;task=2;steps();granny.visible=true;hud('👵 讓座！');sfx.door();say(['door_zh','door_en'],1.65);
    P.x=-7.85;P.z=-3;P.yaw=-Math.PI/2;P.pitch=-.12;seated=1;seatT=performance.now();trainState=4;tt=-3.6;psdLeds.forEach(l=>l.material.color.set(0xff2020))}}
  // phase 2
  if(phase==2||phase==3){
   if(trainState==4){tt+=dt;doorsSet(Math.min(1,Math.max(0,1-tt/1.4)));if(tt>-1.2&&tt<0)psdLeds.forEach(l=>l.visible=Math.floor(tt*6)%2==0);if(tt>=0)psdLeds.forEach(l=>l.visible=true)}
   if(seated==1){eye=1.05;gTag.position.y=1.85+Math.sin(T*5)*.06;if(lookingAt(granny))canAct=giveSeat}
-  if(granny.userData.go&&!granny.userData.sat){const g=granny;walkAnim(g);const dx=-7.97-g.position.x,dz=-3-g.position.z,d=Math.hypot(dx,dz);g.rotation.y=Math.atan2(dx,dz);const st_=Math.min(d,dt*.9);g.position.x+=dx/d*st_;g.position.z+=dz/d*st_;
-   if(d<.06){g.userData.sat=1;g.rotation.y=Math.PI/2;sit(g,false);gTag.position.y=1.4}}
+  if(granny.userData.go&&!granny.userData.sat){const g=granny;walkAnim(g);const dx=-7.97-g.position.x,dz=-3-g.position.z,d=Math.hypot(dx,dz);g.rotation.y=Math.atan2(dx,dz);const st_=Math.min(d,dt*.9);if(d>1e-4){g.position.x+=dx/d*st_;g.position.z+=dz/d*st_}
+   if(d-st_<.06){g.userData.sat=1;g.rotation.y=Math.PI/2;sit(g,false);gTag.position.y=1.4}}
   if(poleS.visible){poleS.position.y=2.2+Math.sin(T*4)*.07;hPole.material.emissiveIntensity=.6+Math.sin(T*6)*.4;
    if(!seated&&near(TX,1.5,1.1))canAct=()=>{poleS.visible=false;hPole.material.emissiveIntensity=0;sfx.ok();toast('✊ ✅');task=3;steps();phase=3;speed=0.01;rumble(.6);hud('🔍 搵 ❌ 行為 0/3');say(['next_adm'],2.5)}}
   if(speed>0&&arrState==0){speed=Math.min(16,speed+dt*3);st.position.z+=speed*dt;if(st.position.z>40&&st.visible){st.visible=false;tun.visible=true;tr.position.z=0}
@@ -470,14 +470,17 @@ function update(dt){clock+=dt;const T=clock;
 function doorsSet(o){psdLeaves.forEach(g=>g.position.z=DOORS[Math.floor(psdLeaves.indexOf(g)/2)]+g.userData.s*(.4+o*.78));tDoors.forEach(d=>d.position.z=d.userData.z0+d.userData.s*o*.76)}
 // ---------- ROUTE MAP ----------
 let mapStep=0;
-function showMap(){hud('🗺️ '+TWL.zh+' ➜ '+ISL.zh);rumble(.3);const sv=$('svg');sv.setAttribute('viewBox','0 0 900 520');sv.setAttribute('width',Math.min(880,innerWidth-40));sv.setAttribute('height',Math.min(880,innerWidth-40)*520/900);
+function showMap(){hud('🗺️ '+TWL.zh+' ➜ '+ISL.zh);rumble(.3);const sv=$('svg');
  const X=i=>30+i*52.5,Y=440,iA=ISL.stations.findIndex(x=>x.code=='ADM'),ax=X(iA);const P={};
+ // portrait phones: zoom into the part of the map that matters (金鐘 ± a few stations) so station dots are big enough to tap
+ const port=innerWidth<innerHeight&&innerWidth<700,vx=port?ax-150:0,vw=port?400:900,sw=Math.min(880,innerWidth-40),sh=Math.min(sw*520/vw,innerHeight*.62),sw2=sh*vw/520;
+ sv.setAttribute('viewBox',vx+' 0 '+vw+' 520');sv.setAttribute('width',sw2);sv.setAttribute('height',sh);
  ISL.stations.forEach((x,i)=>P['I'+x.code]=[X(i),Y]);const tw=TWL.stations,iT=tw.findIndex(x=>x.code=='TST');
  tw.forEach((x,i)=>{if(i<=iT)P['T'+x.code]=[ax,20+i*(370/iT)]});
  let h=`<polyline points="${tw.slice(0,iT+1).map(x=>P['T'+x.code].join(',')).join(' ')} ${ax},${Y-8} ${X(iA-1)},${Y-8}" fill="none" stroke="${TWL.color}" stroke-width="12" stroke-linejoin="round"/>`;
  h+=`<polyline points="${X(0)},${Y+6} ${X(ISL.stations.length-1)},${Y+6}" fill="none" stroke="${ISL.color}" stroke-width="12"/>`;
- h+=`<text x="${ax-14}" y="30" font-size="20" text-anchor="end" fill="${TWL.color}" font-weight="bold">${TWL.zh}</text><text x="30" y="${Y-22}" font-size="20" fill="${ISL.color}" font-weight="bold">${ISL.zh}</text><path id="hl" d="" stroke="#22cc55" stroke-width="7" fill="none" stroke-dasharray="12 8"/>`;
- const node=(x,y,code,zh,col,ic,lab)=>`<g class="stn" data-n="${code}"><circle cx="${x}" cy="${y}" r="${ic?17:10}" fill="#fff" stroke="${ic?'#333':col}" stroke-width="${ic?6:5}"/><circle cx="${x}" cy="${y}" r="24" fill="transparent"/>${lab}</g>`;
+ h+=`<text x="${ax-14}" y="30" font-size="20" text-anchor="end" fill="${TWL.color}" font-weight="bold">${TWL.zh}</text><text x="${vx+30}" y="${Y-22}" font-size="20" fill="${ISL.color}" font-weight="bold">${ISL.zh}</text><path id="hl" d="" stroke="#22cc55" stroke-width="7" fill="none" stroke-dasharray="12 8"/>`;
+ const node=(x,y,code,zh,col,ic,lab)=>`<g class="stn" data-n="${code}"><circle cx="${x}" cy="${y}" r="${ic?17:10}" fill="#fff" stroke="${ic?'#333':col}" stroke-width="${ic?6:5}"/><circle cx="${x}" cy="${y}" r="26" fill="transparent"/>${lab}</g>`;
  tw.slice(0,iT+1).forEach(x=>{const[px,py]=P['T'+x.code];h+=node(px,py,x.code,x.zh,TWL.color,0,`<text x="${px+18}" y="${py+6}" font-size="17" fill="#222">${x.zh}${x.code=='TST'?' 🚩':''}</text>`)});
  ISL.stations.forEach(x=>{const[px,py]=P['I'+x.code];const ic=x.code=='ADM'||x.code=='CEN';h+=node(px,py,x.code,x.zh,ISL.color,ic,`<text transform="translate(${px+4},${py+(ic?30:22)}) rotate(50)" font-size="${ic?19:16}" font-weight="${ic?'bold':'normal'}" fill="#222">${x.zh}${x.code=='CAB'?' 🛍️':''}</text>`)});
  sv.innerHTML=h;sv._P=P;sv._ax=ax;sv.querySelectorAll('.stn').forEach(g=>g.onpointerdown=()=>mapTap(g));$('map').classList.remove('hide')}
