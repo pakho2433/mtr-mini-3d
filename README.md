@@ -13,3 +13,8 @@ A short first-person Three.js game about riding the Hong Kong MTR, made for a pr
 - **Engine**: three.js r160 (MIT), loaded from jsDelivr.
 
 URL options: `?q=0|1|2` locks the quality level (2 = floor reflection and shadows). If `q` isn't set, quality drops automatically when the frame rate stays below 40 fps.
+
+## v5 (2026-10-24)
+- Carriage collision: aisle clamp plus soft circle colliders for passengers and poles. The player slides along them, and a move is only refused if it goes deeper into a collider, so you can always back out. While you're seated, a fresh joystick push stands you up and gives your seat to the granny.
+- Behaviour animations: additive bone offsets on top of the mixer's Sit/Idle pose, with arm poses solved by a small in-page IK grid search. Props are attached to hand bones: the eater raises a 3D burger to his mouth, chews, and the burger shrinks with each bite. The caller holds a 3D phone to his ear, talks and gestures, with red sound-wave arcs. The feet-on-seat passenger has her legs up on the bench. The reader holds an open 3D book with a page that turns. The music listener wears 3D headphones and nods. The emoji tags are now smaller.
+- Portrait HUD: progress icons and the task pill stack vertically and shrink on narrow or portrait screens, respecting the safe area. The vertical FOV widens in portrait.
