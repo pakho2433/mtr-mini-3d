@@ -154,7 +154,7 @@ for(const z of[-9,1,11]){const b=plane(3.6,1.26,std({map:nameT,roughness:.4}),-9
 // pillars
 inst(new THREE.BoxGeometry(.7,3.7,.7),mat.pillar,[-9,-3,3,9,15].map(z=>[4.2,1.85,z]),st);
 // benches
-for(const z of[-6,0,6]){const g=new THREE.Group();g.position.set(8.4,0,z);st.add(g);box(.5,.08,2,mat.seat,0,.45,0,g);box(.06,.45,2,mat.seat,.24,.7,0,g);box(.06,.45,.06,mat.steel,0,.22,-.9,g);box(.06,.45,.06,mat.steel,0,.22,.9,g)}
+for(const z of[-6,0,6]){const g=new THREE.Group();g.position.set(8.4,0,z);st.add(g);box(.5,.08,2,mat.seat,0,.30,0,g);box(.06,.5,2,mat.seat,.24,.6,0,g);box(.06,.3,.06,mat.steel,0,.15,-.9,g);box(.06,.3,.06,mat.steel,0,.15,.9,g)}
 // posters on back wall
 [['🚇','準時','#d71920','#6d0b0f'],['🌱','環保','#2aa84a','#0f4d21'],['🐼','海洋公園','#ff7aa8','#9b2457']].forEach((a,i)=>plane(1.3,1.9,std({map:poster(...a),roughness:.25}),8.93,1.7,-9+i*6,-Math.PI/2,st));
 // hanging signs
@@ -217,13 +217,29 @@ function setAnim(g,name,instant){const u=g.userData;if(u.anim==name&&!instant&&u
  a.play();if(u.cur&&u.cur!==a&&!instant)u.cur.crossFadeTo(a,.35,false);else if(u.cur&&u.cur!==a)u.cur.stop();u.cur=a;
  u.model.position.y=name=='Sit'?(QS.has('sity')?SITY:.47-.45*(u.o.h||1)):0;u.hb.scale.y=name=='Sit'?.75:1}
 function sit(p,instant=true){p.userData.sit=1;setAnim(p,'Sit',instant)}
+const _hv=new THREE.Vector3(),SEATK=+(QS.get('seatk')||.07);
+// keep a seated character's pelvis resting on the seat surface (seat top: train .40, station .34) after the mixer/bone offsets run
+function seatFix(p){const u=p.userData;if(!u.sit||!u.model||!p.visible)return;let B=u.legB;
+ if(!B){B=u.legB={};u.model.traverse(c=>{if(c.isBone)B[c.name.replace('.','')]=c});if(!B.Hips)return}
+ const m=u.model,inTr=p.parent===tr,floorY=inTr?.065:0,stretch=u.beh=='feet';m.updateMatrixWorld(true);
+ B.Hips.getWorldPosition(_hv);p.worldToLocal(_hv);m.position.y+=(inTr?.40:.34)+SEATK-_hv.y;m.updateMatrixWorld(true);
+ p.getWorldDirection(_fw);_fw.y=0;_fw.normalize();
+ for(const sd of['L','R']){const UL=B['UpperLeg'+sd],LL=B['LowerLeg'+sd],FT=B['Foot'+sd];if(!UL||!LL||!FT)continue;
+  LL.getWorldPosition(_k);FT.getWorldPosition(_f);const L=_k.distanceTo(_f);// clip shin length (IK foot is a separate root-parented bone)
+  addR(UL,stretch?-.08:.42,0,0);UL.updateMatrixWorld(true);LL.getWorldPosition(_k);
+  if(stretch){_f.copy(_k).addScaledVector(_fw,L);_f.y=_k.y-.03+Math.sin((window.__T??clock)*2.2+(sd=='L'?0:1.5))*.012}// legs out along the seat, shoes on it
+  else{_f.copy(_k).addScaledVector(_fw,.05);_f.y=floorY+.01;const d=_f.distanceTo(_k);if(d>L)_f.sub(_k).multiplyScalar(L/d).add(_k)}// shin hangs, foot on floor
+  aimY(LL,_k,_f);FT.position.copy(FT.parent.worldToLocal(_f.clone()))}}
+const _k=new THREE.Vector3(),_f=new THREE.Vector3(),_fw=new THREE.Vector3(),_d=new THREE.Vector3(),_qa=new THREE.Quaternion(),_qb=new THREE.Quaternion();
+// rotate bone so its +Y axis (Blender bone direction) points from k toward f
+function aimY(b,k,f){b.getWorldQuaternion(_qa);_d.set(0,1,0).applyQuaternion(_qa);_qb.setFromUnitVectors(_d,_hv.copy(f).sub(k).normalize()).multiply(_qa);b.parent.getWorldQuaternion(_qa);b.quaternion.copy(_qa.invert().multiply(_qb));b.updateMatrixWorld(true)}
 function walkAnim(p){setAnim(p,'Walk')}
 const tag=(p,e,y=2.0,s=.42)=>{const sp=sprite(e,s);sp.position.y=y;p.add(sp);return sp};
 // station crowd
 const crowd=[];
 [[-2.6,-6.9,{m:'cas2F'}],[-2.5,-5.2,{m:'suitM'}],[-2.6,6.9,{m:'casM',shirt:0x2e8b57}],[-2.4,5.1,{m:'workF'}],[6,-10,{m:'suitF'}],[7.6,-6,{m:'casF',h:.72,shirt:0xf39c12}],[3,16,{m:'cas3M'}],[5.5,18,{m:'suitM',shirt:0x4a5a6a}]].forEach(([x,z,o])=>{const p=human(o);p.position.set(x,0,z);p.rotation.y=x<0?-Math.PI/2:Math.PI*Math.random();st.add(p);crowd.push(p)});
 crowd[7].userData.walk=1;crowd[6].userData.walk=1;
-crowd[5].position.x=8.4;sit(crowd[5]);crowd[5].rotation.y=-Math.PI/2;crowd[4].position.x=8.4;sit(crowd[4]);crowd[4].rotation.y=-Math.PI/2;
+crowd[5].position.x=8.12;sit(crowd[5]);crowd[5].rotation.y=-Math.PI/2;crowd[4].position.x=8.12;crowd[4].position.z=0;sit(crowd[4]);crowd[4].rotation.y=-Math.PI/2;
 // ---------- TRAIN ----------
 const tr=new THREE.Group();S.add(tr);const TX=-7;
 const outM=L=>std({map:trainSide(L,0),transparent:true,alphaTest:.5,metalness:.55,roughness:.3,side:THREE.FrontSide});
@@ -254,7 +270,7 @@ for(const z of DOORS){box(.1,.5,1.7,std({color:0xc9ced4,metalness:.6,roughness:.
 for(const z of[-6,0,6])plane(1.6,.14,basic(routeT),-8.38,2.2,z,Math.PI/2,tr);
 // seats
 const segIn=[[-9.8,-6.9],[-5.1,-.9],[.9,5.1],[6.9,9.8]];
-for(const[a,b]of segIn){const L=b-a,c=(a+b)/2;for(const x of[-8.18,-5.82]){box(.5,.06,L,mat.seat,x,.45,c,tr);box(.06,.45,L,mat.seat,x+(x<-7?-.22:.22),.72,c,tr);box(.45,.4,L,std({color:0x6b7178,metalness:.5,roughness:.4}),x,.22,c,tr)}}
+for(const[a,b]of segIn){const L=b-a,c=(a+b)/2;for(const x of[-8.21,-5.79]){box(.42,.06,L,mat.seat,x,.37,c,tr);box(.06,.5,L,mat.seat,x+(x<-7?-.19:.19),.66,c,tr);box(.34,.3,L,std({color:0x6b7178,metalness:.5,roughness:.4}),x+(x<-7?-.03:.03),.2,c,tr)}}
 // poles + rails + handles
 const poleG=new THREE.CylinderGeometry(.025,.025,2.55,10);
 inst(poleG,mat.yellow,[-4.5,-1.5,1.5,4.5,-8.4,8.4].map(z=>[TX,1.3,z]),tr);
@@ -286,12 +302,12 @@ const granny=human({m:'granny',h:.9});granny.position.set(-6.65,0,-3.75);granny.
 const npcs=[];
 function npc(o,x,z,ry,sitting,emo,bad,ex){const p=human(o);p.position.set(x,0,z);p.rotation.y=ry;if(sitting)sit(p);tr.add(p);p.userData.bad=bad;p.userData.npc=1;
  const t=tag(p,emo,sitting?1.55:2.05,.22);p.userData.tag=t;if(ex)ex(p);npcs.push(p);return p}
-npc({m:'casM',shirt:0xe67e22},-5.95,4,-Math.PI/2,1,'🍔',1,p=>p.userData.beh='eat');
-npc({m:'cas2F'},-8.1,7.4,Math.PI,1,'👟',1,p=>{p.userData.beh='feet';p.position.y=.06});
+npc({m:'casM',shirt:0xe67e22},-6.03,4,-Math.PI/2,1,'🍔',1,p=>p.userData.beh='eat');
+npc({m:'cas2F'},-8.19,7.9,Math.PI,1,'👟',1,p=>{p.userData.beh='feet'});
 npc({m:'suitM',shirt:0x8b1d1d},-7.2,-6.6,Math.PI/2,0,'📢',1,p=>p.userData.beh='phone');
-npc({m:'suitF'},-8.1,-7.3,Math.PI/2,1,'📖',0,p=>p.userData.beh='read');
+npc({m:'suitF'},-7.97,-7.3,Math.PI/2,1,'📖',0,p=>p.userData.beh='read');
 npc({m:'cas3M',shirt:0xf1c40f},-6.5,-8.7,-Math.PI/2,0,'🎧',0,p=>p.userData.beh='music');
-npc({m:'casF',shirt:0xff8fb1,h:.7},-5.95,-1.9,-Math.PI/2,1,'🧒',0);
+npc({m:'casF',shirt:0xff8fb1,h:.7},-6.03,-1.9,-Math.PI/2,1,'🧒',0);
 npcs.forEach(p=>p.visible=true);
 tr.position.z=-70;
 // ---------- TUNNEL ----------
@@ -306,12 +322,13 @@ inst(new THREE.BoxGeometry(.15,.15,6),std({color:0x555}),[...Array(10)].map((_,i
 const BN=['Head','Neck','Torso','UpperArm.R','LowerArm.R','Fist.R','UpperArm.L','LowerArm.L','Fist.L','UpperLeg.L','UpperLeg.R','LowerLeg.L','LowerLeg.R','Foot.L','Foot.R'];
 function rigOf(p){const u=p.userData;if(u.rig)return u.rig;if(!u.model)return null;const r={};u.model.traverse(c=>{if(c.isBone){const k=BN.find(n=>n.replace('.','')==c.name.replace('.',''));if(k)r[k]=c}});u.model.updateMatrixWorld(true);u.rig=r;return r}
 function onBone(b,obj,off,rot){if(!b)return obj;const v=new THREE.Vector3();b.getWorldScale(v);const g=new THREE.Group();g.scale.setScalar(2.1/v.x);b.add(g);g.add(obj);if(off)obj.position.set(...off);if(rot)obj.rotation.set(...rot);return obj}
-const PM={bun:std({color:0xd99a4e,roughness:.7}),pat:std({color:0x5a2e1a,roughness:.8}),let:std({color:0x58b33a,roughness:.7}),ch:std({color:0xffc928,roughness:.6}),ph:std({color:0x15181d,metalness:.4,roughness:.3}),scr:new THREE.MeshBasicMaterial({color:0x6fd0ff}),cov:std({color:0x2a5db0,roughness:.7}),pg:std({color:0xf7f3e8,roughness:.9,side:THREE.DoubleSide}),hp:std({color:0x222,roughness:.5}),wave:new THREE.MeshBasicMaterial({color:0xff3b30,transparent:true,depthWrite:false,side:THREE.DoubleSide})};
+const PM={shoe:std({color:0x2f8fe8,roughness:.5}),sole:std({color:0xffffff,roughness:.6}),bun:std({color:0xd99a4e,roughness:.7}),pat:std({color:0x5a2e1a,roughness:.8}),let:std({color:0x58b33a,roughness:.7}),ch:std({color:0xffc928,roughness:.6}),ph:std({color:0x15181d,metalness:.4,roughness:.3}),scr:new THREE.MeshBasicMaterial({color:0x6fd0ff}),cov:std({color:0x2a5db0,roughness:.7}),pg:std({color:0xf7f3e8,roughness:.9,side:THREE.DoubleSide}),hp:std({color:0x222,roughness:.5}),wave:new THREE.MeshBasicMaterial({color:0xff3b30,transparent:true,depthWrite:false,side:THREE.DoubleSide})};
 function burger(){const g=new THREE.Group();const c=(r,h,m,y)=>{const k=new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,16),m);k.position.y=y;g.add(k)};
  const top=new THREE.Mesh(new THREE.SphereGeometry(.06,16,8,0,Math.PI*2,0,Math.PI/2),PM.bun);top.scale.y=.7;top.position.y=.035;g.add(top);c(.062,.012,PM.let,.028);c(.06,.008,PM.ch,.02);c(.058,.022,PM.pat,.005);c(.06,.022,PM.bun,-.017);return g}
 function phoneM(){const g=new THREE.Group();g.add(new THREE.Mesh(new THREE.BoxGeometry(.075,.15,.012),PM.ph));const sc=new THREE.Mesh(new THREE.PlaneGeometry(.065,.13),PM.scr);sc.position.z=.007;g.add(sc);return g}
 function bookM(){const g=new THREE.Group();for(const s of[-1,1]){const h=new THREE.Group();h.rotation.y=s*.35;g.add(h);const c=new THREE.Mesh(new THREE.BoxGeometry(.14,.2,.01),PM.cov);c.position.x=s*.07;h.add(c);const pgs=new THREE.Mesh(new THREE.BoxGeometry(.13,.19,.02),PM.pg);pgs.position.set(s*.068,0,.014);h.add(pgs)}
  const leaf=new THREE.Group();g.add(leaf);const lf=new THREE.Mesh(new THREE.PlaneGeometry(.13,.19),PM.pg);lf.position.x=.066;leaf.add(lf);leaf.position.z=.026;g.userData.leaf=leaf;return g}
+function shoeM(){const g=new THREE.Group();const up=new THREE.Mesh(new RoundedBoxGeometry(.1,.2,.08,2,.03),PM.shoe);g.add(up);const so=new THREE.Mesh(new RoundedBoxGeometry(.11,.21,.025,2,.01),PM.sole);so.position.z=-.045;g.add(so);g.scale.setScalar(.5);return g}
 function headM(){const g=new THREE.Group();const band=new THREE.Mesh(new THREE.TorusGeometry(.13,.014,8,24,Math.PI),PM.hp);g.add(band);for(const s of[-1,1]){const cup=new THREE.Mesh(new THREE.CylinderGeometry(.05,.05,.04,16),new THREE.MeshStandardMaterial({color:0xf1c40f,roughness:.4}));cup.rotation.z=Math.PI/2;cup.position.x=s*.13;g.add(cup)}return g}
 const POSE=window.__pose={};
 window.__ik=(i,side,f,u,rt,leg)=>{const p=npcs[i],r=rigOf(p),UA=r[(leg?'UpperLeg.':'UpperArm.')+side],LA=r[(leg?'LowerLeg.':'LowerArm.')+side],FI=r[(leg?'Foot.':'Fist.')+side],H=leg?r.Torso:r.Head;const q1=UA.quaternion.clone(),q2=LA.quaternion.clone();
@@ -335,7 +352,7 @@ function behave(p,T,i){const u=p.userData,r=rigOf(p);if(!r)return;const ov=POSE[
   const talk=Math.sin(T*9)*.06+Math.sin(T*13.7)*.04;addR(r.Head,talk,Math.sin(T*1.3)*.25,0);
   const g=Math.max(0,Math.sin(T*2.3));addR(r['UpperArm.L'],-.6*g,0,-.3*g);addR(r['LowerArm.L'],-.9*g,Math.sin(T*6)*.4*g,0);addR(r.Torso,0,Math.sin(T*1.3)*.08,0);
   u.waves.forEach((w,k)=>{const f=(T*1.4+k/3)%1;w.position.set(-.38-f*.4,1.45,.05);w.scale.setScalar(.5+f*1.4);w.material.opacity=(1-f)*.9})}
- if(o=='feet'){const A=(window.__A&&window.__A[o])||{ul:[.25,0,0],ll:[-1.6,0,0]};for(const sd of['L','R']){addR(r['UpperLeg.'+sd],...A.ul);addR(r['LowerLeg.'+sd],...A.ll)}addR(r.Head,0,Math.sin(T*.7)*.3,0)}
+ if(o=='feet'){if(!u.prop){u.prop=[onBone(r['Foot.L'],shoeM(),[0,.02,0]),onBone(r['Foot.R'],shoeM(),[0,.02,0])]}addR(r.Head,0,Math.sin(T*.7)*.3,0);addR(r.Torso,-.12,0,0)}// legs stretched onto the seat are handled in seatFix
  if(o=='read'){if(!u.prop){u.prop=onBone(r['Fist.R'],bookM(),[-.06,.08,.05],[0,0,0])}
   const A=(window.__A&&window.__A[o])||{ua:[0,-.25,.25],la:[1.8,0,.6],ual:[0,-.25,-.75],lal:[1.2,0,0]};addR(r['UpperArm.R'],...A.ua);addR(r['LowerArm.R'],...A.la);addR(r['UpperArm.L'],...A.ual);addR(r['LowerArm.L'],...A.lal);
   addR(r.Head,.3,Math.sin(T*.9)*.06,0);const f=(T*.25+i)%1;u.prop.userData.leaf.rotation.y=f<.3?0:f<.55?-(f-.3)/.25*Math.PI*.93:-Math.PI*.93}
@@ -430,7 +447,7 @@ function update(dt){clock+=dt;const T=clock;
  if(phase==2||phase==3){
   if(trainState==4){tt+=dt;doorsSet(Math.min(1,Math.max(0,1-tt/1.4)));if(tt>-1.2&&tt<0)psdLeds.forEach(l=>l.visible=Math.floor(tt*6)%2==0);if(tt>=0)psdLeds.forEach(l=>l.visible=true)}
   if(seated==1){eye=1.05;gTag.position.y=1.85+Math.sin(T*5)*.06;if(lookingAt(granny))canAct=giveSeat}
-  if(granny.userData.go&&!granny.userData.sat){const g=granny;walkAnim(g);const dx=-8.05-g.position.x,dz=-3-g.position.z,d=Math.hypot(dx,dz);g.rotation.y=Math.atan2(dx,dz);const st_=Math.min(d,dt*.9);g.position.x+=dx/d*st_;g.position.z+=dz/d*st_;
+  if(granny.userData.go&&!granny.userData.sat){const g=granny;walkAnim(g);const dx=-7.97-g.position.x,dz=-3-g.position.z,d=Math.hypot(dx,dz);g.rotation.y=Math.atan2(dx,dz);const st_=Math.min(d,dt*.9);g.position.x+=dx/d*st_;g.position.z+=dz/d*st_;
    if(d<.06){g.userData.sat=1;g.rotation.y=Math.PI/2;sit(g,false);gTag.position.y=1.4}}
   if(poleS.visible){poleS.position.y=2.2+Math.sin(T*4)*.07;hPole.material.emissiveIntensity=.6+Math.sin(T*6)*.4;
    if(!seated&&near(TX,1.5,1.1))canAct=()=>{poleS.visible=false;hPole.material.emissiveIntensity=0;sfx.ok();toast('✊ ✅');task=3;steps();phase=3;speed=0.01;rumble(.6);hud('🔍 搵 ❌ 行為 0/3');say(['next_adm'],2.5)}}
@@ -480,7 +497,7 @@ window.__dbg={P,tr,npcs,get phase(){return phase},get hud(){return $('hud').text
 let quality=QS.has('q')?+QS.get('q'):2,fpsN=0,fpsT=0,lastFps=0;
 function applyQ(){if(quality<2){refl.visible=false;mat.floor.transparent=false;mat.floor.opacity=1;mat.floor.needsUpdate=true}if(quality<1){sun.castShadow=false;R.shadowMap.enabled=false;R.setPixelRatio(1);S.traverse(o=>{if(o.material)[o.material].flat().forEach(m=>m.needsUpdate=true)})}}
 applyQ();
-let last=performance.now();R.setAnimationLoop(()=>{const n=performance.now(),raw=(n-last)/1000,dt=Math.min(.1,raw);last=n;update(dt);npcs.forEach(unbehave);mixers.forEach(m=>m.update(dt));npcs.forEach((p,i)=>{if(p.userData.beh&&p.visible)behave(p,window.__T??clock,i)});if(window.__cam){C.position.set(...__cam[0]);C.lookAt(...__cam[1])}
+let last=performance.now();R.setAnimationLoop(()=>{const n=performance.now(),raw=(n-last)/1000,dt=Math.min(.1,raw);last=n;update(dt);npcs.forEach(unbehave);mixers.forEach(m=>m.update(dt));npcs.forEach((p,i)=>{if(p.userData.beh&&p.visible)behave(p,window.__T??clock,i)});people.forEach(seatFix);if(window.__cam){C.position.set(...__cam[0]);C.lookAt(...__cam[1])}
  fpsN++;fpsT+=raw;if(fpsT>2.5){lastFps=fpsN/fpsT;fpsN=0;fpsT=0;if(!QS.has('q')&&phase>=0&&lastFps<40&&quality>0){quality--;applyQ()}}
  R.render(S,C)});
 </script></body></html>
